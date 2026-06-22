@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/theme";
 import { Tabs } from "expo-router";
-import { Cog, House } from "lucide-react-native";
+import { House, User } from "lucide-react-native";
 import { StyleSheet } from "react-native";
 
 export default function TabLayout() {
@@ -27,10 +27,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="login"
         options={{
-          title: "Settings",
-          tabBarIcon: ({ color }) => <Cog size={28} color={color} />,
+          title: "Login",
+          tabBarIcon: ({ color }) => <User size={28} color={color} />,
         }}
       />
     </Tabs>
