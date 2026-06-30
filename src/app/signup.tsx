@@ -1,9 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Check } from "lucide-react-native";
+import { ArrowLeft, Check, Mail } from "lucide-react-native";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
@@ -11,11 +11,17 @@ import { AuthDivider } from "@/components/auth/auth-divider";
 import { ControlledInput } from "@/components/ui/controlled-input";
 import { Colors, Radius, Typography } from "@/constants/theme";
 import { SignupFormValues, signupSchema } from "@/schema/auth";
+import { supabase } from "@/utils/supabase";
+import { mapAuthError } from "@/utils/auth";
 
 export default function SignupScreen() {
   const colors = Colors.light;
   const router = useRouter();
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const {
     control,
@@ -25,9 +31,79 @@ export default function SignupScreen() {
     resolver: zodResolver(signupSchema),
   });
 
-  const onSubmit = (data: SignupFormValues) => {
-    console.log("Signup:", data);
+  const onSubmit = async (data: SignupFormValues) => {
+    if (!agreedToTerms) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data: result, error: authError } = await supabase.auth.signUp({
+        email: data.email.toLowerCase(),
+        password: data.password,
+        options: {
+          data: {
+            name: data.name,
+          },
+        },
+      });
+
+      if (authError) {
+        setError(mapAuthError(authError.message));
+        return;
+      }
+
+      if (!result.session) {
+        setSuccess(true);
+        setRegisteredEmail(data.email);
+      }
+    } catch {
+      setError("Something went wrong. Please try again");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (success) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
+          <View style={styles.successContent}>
+            <View style={[styles.successIcon, { backgroundColor: colors.backgroundElement }]}>
+              <Mail size={40} color={colors.secondary} />
+            </View>
+            <Text style={[styles.successTitle, { color: colors.text }]}>
+              Check your email
+            </Text>
+            <Text style={[styles.successSubtitle, { color: colors.textSecondary }]}>
+              We sent a verification link to{"\n"}
+              <Text style={{ fontWeight: "600", color: colors.text }}>
+                {registeredEmail}
+              </Text>
+            </Text>
+
+            <Pressable
+              onPress={() => setSuccess(false)}
+              style={[styles.secondaryButton, { borderColor: colors.outlineVariant }]}
+            >
+              <Text style={[styles.secondaryLabel, { color: colors.text }]}>
+                Back to Sign Up
+              </Text>
+            </Pressable>
+
+            <Pressable onPress={() => router.replace("/(tabs)/login")}>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                Already verified?{" "}
+                <Text style={{ color: colors.secondary, fontWeight: "600" }}>
+                  Sign In
+                </Text>
+              </Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -54,6 +130,12 @@ export default function SignupScreen() {
             </Text>
           </View>
 
+          {error && (
+            <View style={[styles.errorBanner, { backgroundColor: "#fef2f2" }]}>
+              <Text style={[styles.errorText, { color: "#b91c1c" }]}>{error}</Text>
+            </View>
+          )}
+
           <View style={styles.form}>
             <ControlledInput
               control={control}
@@ -70,6 +152,7 @@ export default function SignupScreen() {
               label="EMAIL ADDRESS"
               placeholder="name@example.com"
               keyboardType="email-address"
+              autoCapitalize="none"
             />
             <ControlledInput
               control={control}
@@ -118,16 +201,25 @@ export default function SignupScreen() {
 
             <Pressable
               onPress={handleSubmit(onSubmit)}
+              disabled={loading || !agreedToTerms}
               style={[
                 styles.createButton,
-                { backgroundColor: colors.secondary },
+                {
+                  backgroundColor: loading || !agreedToTerms
+                    ? colors.outlineVariant
+                    : colors.secondary,
+                },
               ]}
             >
-              <Text
-                style={[styles.createLabel, { color: colors.onSecondary }]}
-              >
-                Create Account
-              </Text>
+              {loading ? (
+                <ActivityIndicator color={colors.onSecondary} />
+              ) : (
+                <Text
+                  style={[styles.createLabel, { color: colors.onSecondary }]}
+                >
+                  Create Account
+                </Text>
+              )}
             </Pressable>
           </View>
 
@@ -169,7 +261,7 @@ export default function SignupScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Pressable onPress={() => router.back()}>
+            <Pressable onPress={() => router.push("/(tabs)/login")}>
               <Text
                 style={[styles.footerText, { color: colors.textSecondary }]}
               >
@@ -224,6 +316,16 @@ const styles = StyleSheet.create({
   subtitle: {
     ...Typography.bodyMd,
     fontSize: 17,
+    textAlign: "center",
+  },
+  errorBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    marginBottom: 16,
+  },
+  errorText: {
+    ...Typography.bodySm,
     textAlign: "center",
   },
   form: {
@@ -292,5 +394,42 @@ const styles = StyleSheet.create({
     ...Typography.bodySm,
     fontSize: 13,
     textAlign: "center",
+  },
+  successContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  successTitle: {
+    ...Typography.headlineLg,
+    fontSize: 28,
+  },
+  successSubtitle: {
+    ...Typography.bodyMd,
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    height: 56,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  secondaryLabel: {
+    ...Typography.titleMd,
+    fontSize: 16,
   },
 });

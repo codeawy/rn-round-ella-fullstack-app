@@ -1,6 +1,18 @@
 import { ErrorMessage } from "@hookform/error-message";
-import { Control, FieldErrors, FieldValues, Path } from "react-hook-form";
-import { StyleSheet, Text, TextInput, TextInputProps, View } from "react-native";
+import {
+  Control,
+  Controller,
+  FieldErrors,
+  FieldValues,
+  Path,
+} from "react-hook-form";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  View,
+} from "react-native";
 
 import { Colors, Radius, Typography } from "@/constants/theme";
 
@@ -25,27 +37,43 @@ export function ControlledInput<T extends FieldValues>({
       <Text style={[styles.label, { color: colors.textSecondary }]}>
         {label}
       </Text>
-      <TextInput
-        placeholderTextColor={colors.textSecondary}
-        autoCapitalize="none"
-        autoCorrect={false}
-        {...textInputProps}
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.surfaceLowest,
-            borderColor: errors[name] ? colors.error : colors.outlineVariant,
-            color: colors.text,
-          },
-          textInputProps.style,
-        ]}
+      <Controller
+        control={control}
+        name={name}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            {...textInputProps}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surfaceLowest,
+                borderColor: errors[name]
+                  ? colors.error
+                  : colors.outlineVariant,
+                color: colors.text,
+              },
+              textInputProps.style,
+            ]}
+          />
+        )}
       />
       <ErrorMessage
         errors={errors}
         name={name as any}
-        render={({ message }) => (
-          <Text style={[styles.error, { color: colors.error }]}>{message}</Text>
-        )}
+        render={({ message }) => {
+          console.log({ message });
+          return (
+            <Text style={[styles.error, { color: colors.error }]}>
+              {message}
+            </Text>
+          );
+        }}
       />
     </View>
   );
