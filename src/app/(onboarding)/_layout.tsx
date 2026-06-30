@@ -5,6 +5,7 @@ const OnboardingLayout = () => {
     <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
       <Stack.Screen name="index" />
       <Stack.Screen name="preferences" />
+      <Stack.Screen name="feed" />
     </Stack>
   );
 };
